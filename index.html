@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>IP Space allocation visualizer</title>
+	<link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+	<h1>IP Space allocation visualizer</h1>
+	<h3 style="color: #666; font-weight: normal; margin-top: -10px; margin-bottom: 20px;">
+		Visualize how your subnets carve up your VPC's IP space. Hover over regions to see details, click empty spaces to
+		copy the largest possible CIDR that fits.
+	</h3>
+
+	<div class="input-section">
+		<label for="vpc-cidr">VPC CIDR (e.g., 10.0.0.0/16):</label><br>
+		<input type="text" id="vpc-cidr" placeholder="10.0.0.0/16">
+	</div>
+
+	<div class="input-section">
+		<label for="subnet-cidrs">Subnet CIDRs (one per line):</label><br>
+		<textarea id="subnet-cidrs" placeholder="10.0.0.0/24&#10;10.0.1.0/24"></textarea>
+	</div>
+
+	<button onclick="ShowIPSpace()">Visualize</button>
+
+	<div class="visualization" id="viz"></div>
+	<div class="stats" id="stats"></div>
+	<div class="error" id="error"></div>
+
+	<script src="js/cidr.js"></script>
+	<script src="js/app.js"></script>
+</body>
+
+</html>
