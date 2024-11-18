@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Space Visualizer</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            max-width: 1200px;
+            margin: auto;
+        }
+        h1 {
+            text-align: center;
+            color: #0056b3;
+        }
+        form {
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+        label {
+            font-weight: bold;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: monospace;
+        }
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        button:not(.add-subnet-inline-btn) {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:not(.add-subnet-inline-btn):hover {
+            background-color: #0056b3;
+        }
+
+        .info-panels-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .info-panel {
+            flex: 1;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            min-height: 150px;
+            font-family: monospace;
+            white-space: pre-wrap; 
+            font-size: 0.9em;
+            line-height: 1.4;
+            overflow-y: auto;
+            max-height: 400px;
+            position: relative;
+        }
+        #vpcInfoArea {
+            background-color: #e6f7ff; 
+            border-color: #91d5ff;
+        }
+
+
+        #visualizationArea {
+            position: relative; 
+        }
+        #vpcBar {
+            width: 100%;
+            height: 60px;
+            background-color: #e9ecef;
+            border: 1px solid #adb5bd;
+            border-radius: 4px;
+            position: relative; 
+            box-sizing: border-box;
+            overflow: hidden; 
+            cursor: crosshair; 
+        }
+        .subnetBar {
+            height: 100%;
+            background-color: #007bff;
+            opacity: 0.7;
+            border-right: 1px solid #0056b3;
+            position: absolute;
+            box-sizing: border-box;
+            color: white;
+            font-size: 11px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: help;
+            padding: 0 3px; 
+        }
+        .subnetBar:hover {
+            opacity: 1;
+            z-index: 10; 
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+            border-left: 3px solid red;
+            padding-left: 7px;
+        }
+        .warning {
+            color: #856404;
+            border-left: 3px solid #ffc107;
+            padding-left: 7px;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .add-subnet-inline-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            font-size: 20px;
+            line-height: 28px;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: background-color 0.2s;
+        }
+        .add-subnet-inline-btn:hover {
+            background-color: #1e7e34;
+        }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background: #ccc;
+            margin: 10px 0;
+        }
+        .allocation-info {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #91d5ff;
+        }
+        .allocation-full {
+            color: #007bff;
+            font-weight: bold;
+        }
+
+
+        @media (max-width: 768px) {
+            .info-panels-container {
+                flex-direction: column;
+            }
+            .info-panel {
+                max-height: 300px;
+            }
+             .add-subnet-inline-btn {
+                top: 5px;
+                right: 5px;
+                width: 25px;
+                height: 25px;
+                font-size: 18px;
+                line-height: 23px;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>IP Space Visualizer</h1>
+        <form id="ipForm">
+            <div>
+                <label for="vpcCidr">VPC CIDR Block:</label>
+                <input type="text" id="vpcCidr" name="vpcCidr" placeholder="e.g., 10.0.0.0/16" required>
+            </div>
+            <div>
+                <label for="subnetCidrs">Subnet CIDR Blocks (one per line):</label>
+                <textarea id="subnetCidrs" name="subnetCidrs" placeholder="e.g., 10.0.1.0/24
+10.0.2.0/24"></textarea>
+            </div>
+            <button type="submit">Visualize</button>
+        </form>
+
+        <div class="info-panels-container">
+            <div id="vpcInfoArea" class="info-panel">VPC details will appear here once visualized.</div>
+            <div id="infoArea" class="info-panel">Enter CIDR blocks and click "Visualize". Click on empty space for suggestions or a subnet for its details.</div>
+        </div>
+
+        <div id="visualizationArea">
+            <div id="vpcBar" title="VPC Total Space"></div>
+        </div>
+    </div>
+
+    <script>
+        const ipForm = document.getElementById('ipForm');
+        const vpcCidrInput = document.getElementById('vpcCidr');
+        const subnetCidrsInput = document.getElementById('subnetCidrs');
+        const vpcBarElement = document.getElementById('vpcBar');
+        const vpcInfoAreaElement = document.getElementById('vpcInfoArea');
+        const infoArea = document.getElementById('infoArea');
+
+        let currentVpcRange = null;
+        let currentSubnetRanges = [];
+        let lastSuggestedCidr = null;
+        let debounceTimer;
+
+        function ipToLong(ip) {
+            return ip.split('.').reduce((acc, octet, index) => 
+                acc + (parseInt(octet) << (24 - index * 8)), 0) >>> 0;
+        }
+
+        function longToIp(long) {
+            return [
+                (long >>> 24) & 255,
+                (long >>> 16) & 255,
+                (long >>> 8) & 255,
+                long & 255
+            ].join('.');
+        }
+
+        function validateCidr(cidr) {
+            const cidrRegex = /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d{1,2})$/;
+            const match = cidr.match(cidrRegex);
+            if (!match) return false;
+            const [, ip, prefixStr] = match;
+            const prefix = parseInt(prefixStr);
+            if (prefix < 0 || prefix > 32) return false;
+            const octets = ip.split('.').map(Number);
+            if (octets.some(octet => octet < 0 || octet > 255)) return false;
+            return true;
+        }
+        
+        function cidrToRange(cidrStr) {
+            if (!validateCidr(cidrStr)) return null;
+            const [ipPart, prefixPart] = cidrStr.split('/');
+            const prefix = parseInt(prefixPart);
+            
+            let ipLong = ipToLong(ipPart);
+            const size = Math.pow(2, 32 - prefix);
+            const networkAddressLong = Math.floor(ipLong / size) * size;
+            const broadcastAddressLong = networkAddressLong + size - 1;
+
+            return {
+                cidr: longToIp(networkAddressLong) + '/' + prefix,
+                originalInput: cidrStr,
+                start: networkAddressLong,
+                end: broadcastAddressLong,
+                prefix: prefix,
+                size: size
+            };
+        }
+
+        function getIpClass(ipLong) {
+            const firstOctet = (ipLong >>> 24) & 0xFF;
+            if (firstOctet >= 1 && firstOctet <= 126) { 
+                if (firstOctet === 10) return 'A (Private)'; 
+                return 'A';
+            }
+            if (firstOctet === 127) return 'A (Loopback)'; 
+            if (firstOctet >= 128 && firstOctet <= 191) { 
+                if (firstOctet === 172 && ((ipLong >>> 16) & 0xFF) >= 16 && ((ipLong >>> 16) & 0xFF) <= 31) return 'B (Private)'; 
+                return 'B';
+            }
+            if (firstOctet >= 192 && firstOctet <= 223) { 
+                if (firstOctet === 192 && ((ipLong >>> 16) & 0xFF) === 168) return 'C (Private)'; 
+                if (firstOctet === 169 && ((ipLong >>> 16) & 0xFF) === 254) return 'Link-Local (APIPA)'; 
+                return 'C';
+            }
+            if (firstOctet >= 224 && firstOctet <= 239) return 'D (Multicast)';
+            if (firstOctet >= 240 && firstOctet <= 254) return 'E (Experimental)'; 
+            if (firstOctet === 0) return 'Special (e.g. 0.0.0.0/8)';
+            return 'Unknown or Special';
+        }
+
+        function prefixToNetmask(prefix) {
+            if (prefix < 0 || prefix > 32) return 'Invalid Prefix';
+            if (prefix === 0) return '0.0.0.0';
+            let maskLong = 0;
+            for (let i = 0; i < prefix; i++) {
+                maskLong |= (1 << (31 - i));
+            }
+            maskLong = maskLong >>> 0; 
+            return longToIp(maskLong);
+        }
+
+        function generateCidrDetailsHtml(rangeObject, type = "Subnet") {
+            if (!rangeObject) return "";
+            let usableIpsCount;
+            let usableRangeStr = "";
+            if (rangeObject.prefix === 32) {
+                usableIpsCount = 1;
+                usableRangeStr = `${longToIp(rangeObject.start)} (single host)`;
+            } else if (rangeObject.prefix === 31) { 
+                usableIpsCount = 2;
+                usableRangeStr = `${longToIp(rangeObject.start)} - ${longToIp(rangeObject.end)}`;
+            } else if (rangeObject.size > 2) {
+                usableIpsCount = rangeObject.size - 2;
+                usableRangeStr = `${longToIp(rangeObject.start + 1)} - ${longToIp(rangeObject.end - 1)}`;
+            } else { 
+                usableIpsCount = 0;
+                usableRangeStr = "N/A";
+            }
+            const addButtonHtml = (type === "Suggested New Subnet") ? '<button class="add-subnet-inline-btn" title="Add this subnet to list">+</button>' : '';
+
+            const html = `${addButtonHtml}<strong>${type} Details (${rangeObject.originalInput || rangeObject.cidr}):</strong>
+CIDR Block:          ${rangeObject.cidr}
+Network Address:     ${longToIp(rangeObject.start)}
+Broadcast Address:   ${longToIp(rangeObject.end)}
+Netmask:             ${prefixToNetmask(rangeObject.prefix)} (${rangeObject.prefix})
+IP Class (of Net):   ${getIpClass(rangeObject.start)}
+Total IPs in Block:  ${rangeObject.size.toLocaleString()}
+Usable Host IPs:     ${usableIpsCount.toLocaleString()}
+Usable Host Range:   ${usableRangeStr}
+Full IP Range:       ${longToIp(rangeObject.start)} - ${longToIp(rangeObject.end)}`;
+            return html.trim();
+        }
+
+        function getVpcAllocationHtml() {
+            if (!currentVpcRange || currentVpcRange.size === 0) return "";
+
+            let totalAllocatedSize = 0;
+            currentSubnetRanges.forEach(subnet => totalAllocatedSize += subnet.size);
+
+            const freeSize = currentVpcRange.size - totalAllocatedSize;
+            const allocatedPercentage = (totalAllocatedSize / currentVpcRange.size) * 100;
+            
+            let allocationSummary = `
+<div class="allocation-info">
+<strong>VPC Allocation Status:</strong>
+Total IPs in VPC:      ${currentVpcRange.size.toLocaleString()}
+Approx. Allocated IPs: ${totalAllocatedSize.toLocaleString()} (${allocatedPercentage.toFixed(2)}%)
+Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,freeSize)/currentVpcRange.size * 100).toFixed(2)}%)`;
+
+            if (totalAllocatedSize >= currentVpcRange.size) {
+                 allocationSummary += `
+<span class="allocation-full">VPC space is fully (or over) allocated by defined subnets.</span>`;
+            }
+            allocationSummary += `</div>`;
+            return allocationSummary;
+        }
+
+
+        function renderSubnets() {
+            vpcBarElement.innerHTML = ''; 
+            if (!currentVpcRange) return;
+            const vpcTotalSize = currentVpcRange.size;
+            if (vpcTotalSize === 0) return; 
+            currentSubnetRanges.forEach(subnet => {
+                const subnetDiv = document.createElement('div');
+                subnetDiv.className = 'subnetBar';
+                const offset = subnet.start - currentVpcRange.start;
+                const widthPercentage = Math.max(0.1, (subnet.size / vpcTotalSize) * 100); 
+                const leftPercentage = (offset / vpcTotalSize) * 100;
+                subnetDiv.style.left = `${leftPercentage}%`;
+                subnetDiv.style.width = `${widthPercentage}%`;
+                subnetDiv.title = `Subnet: ${subnet.cidr}\nRange: ${longToIp(subnet.start)} - ${longToIp(subnet.end)}\nSize: ${subnet.size.toLocaleString()} IPs`;
+                const textNode = document.createTextNode(subnet.cidr);
+                subnetDiv.appendChild(textNode);
+                vpcBarElement.appendChild(subnetDiv);
+            });
+        }
+        
+        function triggerVisualizationProcessing(source = "form_submit", updateUrl = true) {
+            infoArea.innerHTML = 'Processing...'; 
+            infoArea.className = 'info-panel';
+
+            const vpcCidrStr = vpcCidrInput.value.trim();
+            currentVpcRange = cidrToRange(vpcCidrStr);
+
+            if (!currentVpcRange) {
+                infoArea.innerHTML = 'Invalid VPC CIDR format or range.';
+                infoArea.classList.add('error');
+                vpcInfoAreaElement.innerHTML = 'VPC CIDR is invalid or not provided.';
+                renderSubnets(); 
+                if (updateUrl) updateURLFromForm();
+                return;
+            }
+            const subnetCidrLines = subnetCidrsInput.value.trim().split('\n');
+            currentSubnetRanges = [];
+
+            for (const line of subnetCidrLines) {
+                const subnetCidrStr = line.trim();
+                if (!subnetCidrStr) continue;
+                const subnetRange = cidrToRange(subnetCidrStr);
+                if (!subnetRange) {
+                    infoArea.innerHTML = `Invalid Subnet CIDR: ${subnetCidrStr}`;
+                    infoArea.classList.add('error');
+                    currentSubnetRanges = []; 
+                    vpcInfoAreaElement.innerHTML = generateCidrDetailsHtml(currentVpcRange, "VPC") + "\n" + getVpcAllocationHtml();
+                    renderSubnets(); 
+                    if (updateUrl) updateURLFromForm();
+                    return;
+                }
+                if (subnetRange.start < currentVpcRange.start || subnetRange.end > currentVpcRange.end) {
+                    infoArea.innerHTML = `Subnet ${subnetRange.cidr} (from input ${subnetRange.originalInput}) is outside VPC ${currentVpcRange.cidr}.`;
+                    infoArea.classList.add('error');
+                    currentSubnetRanges = [];
+                     vpcInfoAreaElement.innerHTML = generateCidrDetailsHtml(currentVpcRange, "VPC") + "\n" + getVpcAllocationHtml();
+                    renderSubnets();
+                    if (updateUrl) updateURLFromForm();
+                    return;
+                }
+                currentSubnetRanges.push(subnetRange);
+            }
+            currentSubnetRanges.sort((a, b) => a.start - b.start);
+
+            vpcInfoAreaElement.innerHTML = generateCidrDetailsHtml(currentVpcRange, "VPC") + "\n" + getVpcAllocationHtml();
+            vpcBarElement.title = `VPC: ${currentVpcRange.cidr} (Size: ${currentVpcRange.size.toLocaleString()} IPs)`;
+
+
+            let overlapWarning = "";
+            for (let i = 0; i < currentSubnetRanges.length - 1; i++) {
+                if (currentSubnetRanges[i].end >= currentSubnetRanges[i+1].start) {
+                    overlapWarning += `Warning: Subnets ${currentSubnetRanges[i].cidr} and ${currentSubnetRanges[i+1].cidr} overlap.\n`;
+                }
+            }
+            renderSubnets(); 
+            
+            let mainInfoMessage = 'Visualization updated. Click on empty space for suggestions or a subnet for its details.';
+            if (infoArea.classList.contains('error')) { 
+            } else if (overlapWarning) {
+                infoArea.innerHTML = overlapWarning.trim() + "\n<hr>" + mainInfoMessage;
+                infoArea.classList.add('warning');
+            } else {
+                infoArea.innerHTML = mainInfoMessage;
+            }
+            if (updateUrl) updateURLFromForm();
+        }
+
+        ipForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            triggerVisualizationProcessing("form_submit");
+        });
+
+        vpcBarElement.addEventListener('click', function(event) {
+            if (!currentVpcRange) {
+                infoArea.innerHTML = 'Please visualize a VPC first.';
+                infoArea.classList.add('error');
+                return;
+            }
+            infoArea.className = 'info-panel'; 
+            infoArea.innerHTML = ''; 
+
+            const rect = vpcBarElement.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const barWidth = vpcBarElement.offsetWidth;
+
+            const clickRatio = clickX / barWidth;
+            const clickedIpOffset = Math.floor(clickRatio * currentVpcRange.size);
+            const clickedIpLong = currentVpcRange.start + clickedIpOffset;
+
+            for (const subnet of currentSubnetRanges) {
+                if (clickedIpLong >= subnet.start && clickedIpLong <= subnet.end) {
+                    infoArea.innerHTML = generateCidrDetailsHtml(subnet, "Subnet");
+                    return;
+                }
+            }
+
+            let gapStartLong = currentVpcRange.start;
+            let gapEndLong = currentVpcRange.end;
+
+            let leftSubnetEnd = currentVpcRange.start -1; 
+            for (const subnet of currentSubnetRanges) {
+                if (subnet.end < clickedIpLong) {
+                    leftSubnetEnd = Math.max(leftSubnetEnd, subnet.end);
+                }
+            }
+            gapStartLong = leftSubnetEnd + 1;
+            
+            let rightSubnetStart = currentVpcRange.end + 1; 
+            for (const subnet of currentSubnetRanges) {
+                if (subnet.start > clickedIpLong) {
+                    rightSubnetStart = Math.min(rightSubnetStart, subnet.start);
+                    break; 
+                }
+            }
+            gapEndLong = rightSubnetStart - 1;
+
+            if (gapStartLong > gapEndLong || clickedIpLong < gapStartLong || clickedIpLong > gapEndLong) { 
+                infoArea.innerHTML = `<strong>Selected IP: ${longToIp(clickedIpLong)}</strong><br>No valid empty space identified for this click.<br>Determined Gap: [${longToIp(gapStartLong)}-${longToIp(gapEndLong)}]`;
+                return;
+            }
+            
+            const largestCidrObj = findLargestCidrInGapContainingIp(clickedIpLong, gapStartLong, gapEndLong);
+            
+            if (largestCidrObj) {
+                lastSuggestedCidr = largestCidrObj.cidr;
+                const suggestedDetails = generateCidrDetailsHtml(largestCidrObj, "Suggested New Subnet");
+                infoArea.innerHTML = `<strong>Selected IP: ${longToIp(clickedIpLong)} in empty space [${longToIp(gapStartLong)} - ${longToIp(gapEndLong)}]</strong><hr>${suggestedDetails}`;
+                const dynamicAddBtn = infoArea.querySelector('.add-subnet-inline-btn');
+                if (dynamicAddBtn) {
+                    dynamicAddBtn.addEventListener('click', handleAddSuggestedSubnet);
+                }
+            } else {
+                infoArea.innerHTML = `<strong>Selected IP: ${longToIp(clickedIpLong)}</strong><br>No suitable CIDR found for the empty space [${longToIp(gapStartLong)} - ${longToIp(gapEndLong)}] containing the click.`;
+            }
+        });
+
+        function findLargestCidrInGapContainingIp(clickedIpLong, gapStartLong, gapEndLong) {
+            const minPrefix = currentVpcRange ? currentVpcRange.prefix : 1; 
+            for (let prefix = minPrefix; prefix <= 32; prefix++) {
+                const blockSize = Math.pow(2, 32 - prefix);
+                const potentialNetworkAddress = Math.floor(clickedIpLong / blockSize) * blockSize;
+                const potentialBroadcastAddress = potentialNetworkAddress + blockSize - 1;
+                if (potentialNetworkAddress >= gapStartLong && potentialBroadcastAddress <= gapEndLong) {
+                    return {
+                        cidr: `${longToIp(potentialNetworkAddress)}/${prefix}`,
+                        start: potentialNetworkAddress,
+                        end: potentialBroadcastAddress,
+                        prefix: prefix,
+                        size: blockSize,
+                        originalInput: `${longToIp(potentialNetworkAddress)}/${prefix}` 
+                    };
+                }
+            }
+            return null; 
+        }
+
+        function handleAddSuggestedSubnet() {
+            if (lastSuggestedCidr) {
+                const currentSubnetsText = subnetCidrsInput.value.trim();
+                if (currentSubnetsText) {
+                    subnetCidrsInput.value = currentSubnetsText + '\n' + lastSuggestedCidr;
+                } else {
+                    subnetCidrsInput.value = lastSuggestedCidr;
+                }
+                triggerVisualizationProcessing("add_subnet_button");
+                lastSuggestedCidr = null;
+            }
+        }
+
+
+        function updateURLFromForm() {
+            const vpcVal = vpcCidrInput.value.trim();
+            const subnetsVal = subnetCidrsInput.value.trim();
+            const params = new URLSearchParams();
+
+            if (vpcVal) {
+                params.set('vpc', vpcVal);
+            }
+            if (subnetsVal) {
+                const subnetArray = subnetsVal.split('\n').map(s => s.trim()).filter(s => s);
+                if (subnetArray.length > 0) {
+                    params.set('subnets', subnetArray.join(','));
+                }
+            }
+
+            const newQueryString = params.toString();
+            if (window.location.search.substring(1) !== newQueryString) {
+                 const newUrl = newQueryString ? `${window.location.pathname}?${newQueryString}` : window.location.pathname;
+                 window.history.pushState({path: newUrl}, '', newUrl);
+            }
+        }
+        
+        function loadParamsFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            const vpcParam = params.get('vpc');
+            const subnetsParam = params.get('subnets');
+            let paramsLoaded = false;
+
+            if (vpcParam) {
+                vpcCidrInput.value = vpcParam;
+                paramsLoaded = true;
+            }
+            if (subnetsParam) {
+                const subnetArray = subnetsParam.split(',');
+                subnetCidrsInput.value = subnetArray.map(s => s.trim()).join('\n');
+                paramsLoaded = true;
+            }
+            if (paramsLoaded) {
+                triggerVisualizationProcessing("url_params", false); 
+            } else {
+                vpcInfoAreaElement.innerHTML = 'VPC details will appear here once visualized.';
+                infoArea.innerHTML = 'Enter CIDR blocks and click "Visualize". Click on empty space for suggestions or a subnet for its details.';
+            }
+        }
+
+        function handleFormInputChange() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                updateURLFromForm(); 
+            }, 750);
+        }
+
+        vpcCidrInput.addEventListener('input', handleFormInputChange);
+        subnetCidrsInput.addEventListener('input', handleFormInputChange);
+
+        window.addEventListener('DOMContentLoaded', (event) => {
+            loadParamsFromURL();
+        });
+
+    </script>
+</body>
+</html>
