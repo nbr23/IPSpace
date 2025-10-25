@@ -355,6 +355,36 @@
             return longToIp(maskLong);
         }
 
+        function getPreviousContiguousCidr(rangeObject) {
+            if (!rangeObject) return null;
+            const prevEnd = rangeObject.start - 1;
+            if (prevEnd < 0) return null;
+            const prevStart = prevEnd - rangeObject.size + 1;
+            if (prevStart < 0) return null;
+            return {
+                cidr: `${longToIp(prevStart)}/${rangeObject.prefix}`,
+                start: prevStart,
+                end: prevEnd,
+                prefix: rangeObject.prefix,
+                size: rangeObject.size
+            };
+        }
+
+        function getNextContiguousCidr(rangeObject) {
+            if (!rangeObject) return null;
+            const nextStart = rangeObject.end + 1;
+            if (nextStart > 0xFFFFFFFF) return null;
+            const nextEnd = nextStart + rangeObject.size - 1;
+            if (nextEnd > 0xFFFFFFFF) return null;
+            return {
+                cidr: `${longToIp(nextStart)}/${rangeObject.prefix}`,
+                start: nextStart,
+                end: nextEnd,
+                prefix: rangeObject.prefix,
+                size: rangeObject.size
+            };
+        }
+
         function generateCidrDetailsHtml(rangeObject, type = "Subnet") {
             if (!rangeObject) return "";
             let usableIpsCount;
@@ -374,7 +404,7 @@
             }
             const addButtonHtml = (type === "Suggested New Subnet") ? '<button class="add-subnet-inline-btn" title="Add this subnet to list">+</button>' : '';
 
-            const html = `${addButtonHtml}<strong>${type} Details (${rangeObject.originalInput || rangeObject.cidr}):</strong>
+            let html = `${addButtonHtml}<strong>${type} Details (${rangeObject.originalInput || rangeObject.cidr}):</strong>
 CIDR Block:          ${rangeObject.cidr}
 Network Address:     ${longToIp(rangeObject.start)}
 Broadcast Address:   ${longToIp(rangeObject.end)}
@@ -384,6 +414,27 @@ Total IPs in Block:  ${rangeObject.size.toLocaleString()}
 Usable Host IPs:     ${usableIpsCount.toLocaleString()}
 Usable Host Range:   ${usableRangeStr}
 Full IP Range:       ${longToIp(rangeObject.start)} - ${longToIp(rangeObject.end)}`;
+
+            if (type === "VPC") {
+                const prevBlock = getPreviousContiguousCidr(rangeObject);
+                if (prevBlock) {
+                    html += `
+Prev Contiguous:     ${prevBlock.cidr}`;
+                } else {
+                    html += `
+Prev Contiguous:     N/A (would underflow IPv4 space)`;
+                }
+
+                const nextBlock = getNextContiguousCidr(rangeObject);
+                if (nextBlock) {
+                    html += `
+Next Contiguous:     ${nextBlock.cidr}`;
+                } else {
+                    html += `
+Next Contiguous:     N/A (would overflow IPv4 space)`;
+                }
+            }
+
             return html.trim();
         }
 
