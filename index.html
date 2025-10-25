@@ -213,6 +213,18 @@
             font-weight: bold;
         }
 
+        .cidr-nav-link {
+            color: #007bff;
+            text-decoration: underline;
+            cursor: pointer;
+            font-family: monospace;
+        }
+
+        .cidr-nav-link:hover {
+            color: #0056b3;
+            text-decoration: none;
+        }
+
 
         @media (max-width: 768px) {
             .info-panels-container {
@@ -419,7 +431,7 @@ Full IP Range:       ${longToIp(rangeObject.start)} - ${longToIp(rangeObject.end
                 const prevBlock = getPreviousContiguousCidr(rangeObject);
                 if (prevBlock) {
                     html += `
-Prev Contiguous:     ${prevBlock.cidr}`;
+Prev Contiguous:     <span class="cidr-nav-link" data-cidr="${prevBlock.cidr}">${prevBlock.cidr}</span>`;
                 } else {
                     html += `
 Prev Contiguous:     N/A (would underflow IPv4 space)`;
@@ -428,7 +440,7 @@ Prev Contiguous:     N/A (would underflow IPv4 space)`;
                 const nextBlock = getNextContiguousCidr(rangeObject);
                 if (nextBlock) {
                     html += `
-Next Contiguous:     ${nextBlock.cidr}`;
+Next Contiguous:     <span class="cidr-nav-link" data-cidr="${nextBlock.cidr}">${nextBlock.cidr}</span>`;
                 } else {
                     html += `
 Next Contiguous:     N/A (would overflow IPv4 space)`;
@@ -743,6 +755,17 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
 
         vpcCidrInput.addEventListener('input', handleFormInputChange);
         subnetCidrsInput.addEventListener('input', handleFormInputChange);
+
+        vpcInfoAreaElement.addEventListener('click', function(event) {
+            if (event.target.classList.contains('cidr-nav-link')) {
+                const newCidr = event.target.getAttribute('data-cidr');
+                if (newCidr) {
+                    vpcCidrInput.value = newCidr;
+                    subnetCidrsInput.value = '';
+                    triggerVisualizationProcessing("cidr_navigation");
+                }
+            }
+        });
 
         window.addEventListener('DOMContentLoaded', (event) => {
             loadParamsFromURL();
