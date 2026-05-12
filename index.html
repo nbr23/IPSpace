@@ -48,6 +48,17 @@
             font-family: monospace;
         }
 
+        input[type="text"].input-error,
+        textarea.input-error {
+            border-color: #dc3545;
+            background-color: #fff5f5;
+        }
+
+        input[type="text"].input-error:focus,
+        textarea.input-error:focus {
+            outline-color: #dc3545;
+        }
+
         textarea {
             min-height: 80px;
             resize: vertical;
@@ -362,15 +373,6 @@
             ].join('.');
         }
 
-        function escapeHtml(str) {
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-        }
-
         function validateCidr(cidr) {
             const cidrRegex = /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d{1,2})$/;
             const match = cidr.match(cidrRegex);
@@ -614,6 +616,8 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
         function triggerVisualizationProcessing(source = "form_submit", updateUrl = true) {
             infoArea.innerHTML = 'Processing...';
             infoArea.className = 'info-panel';
+            vpcCidrInput.classList.remove('input-error');
+            subnetCidrsInput.classList.remove('input-error');
             clearPreview();
             selectedSubnetCidr = null;
 
@@ -621,6 +625,7 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
             currentVpcRange = cidrToRange(vpcCidrStr);
 
             if (!currentVpcRange) {
+                if (vpcCidrStr) vpcCidrInput.classList.add('input-error');
                 infoArea.innerHTML = 'Invalid VPC CIDR format or range.';
                 infoArea.classList.add('error');
                 vpcInfoAreaElement.innerHTML = 'VPC CIDR is invalid or not provided.';
@@ -630,26 +635,31 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
             }
             const subnetCidrLines = subnetCidrsInput.value.trim().split('\n');
             currentSubnetRanges = [];
-            const subnetErrors = [];
             const faultyInputs = [];
+            let hasInvalidFormat = false;
+            let hasOutsideVpc = false;
 
             for (const line of subnetCidrLines) {
                 const subnetCidrStr = line.trim();
                 if (!subnetCidrStr) continue;
                 const subnetRange = cidrToRange(subnetCidrStr);
                 if (!subnetRange) {
-                    subnetErrors.push(`Invalid Subnet CIDR: ${escapeHtml(subnetCidrStr)}`);
+                    hasInvalidFormat = true;
                     faultyInputs.push(subnetCidrStr);
                     continue;
                 }
                 if (subnetRange.start < currentVpcRange.start || subnetRange.end > currentVpcRange.end) {
-                    subnetErrors.push(`Subnet ${subnetRange.cidr} (from input ${subnetRange.originalInput}) is outside VPC ${currentVpcRange.cidr}.`);
+                    hasOutsideVpc = true;
                     faultyInputs.push(subnetCidrStr);
                     continue;
                 }
                 currentSubnetRanges.push(subnetRange);
             }
             lastFaultyInputs = faultyInputs;
+            if (faultyInputs.length > 0) subnetCidrsInput.classList.add('input-error');
+            const subnetErrors = [];
+            if (hasInvalidFormat) subnetErrors.push('Invalid subnet CIDR format.');
+            if (hasOutsideVpc) subnetErrors.push('Subnet outside VPC range.');
             currentSubnetRanges.sort((a, b) => a.start - b.start);
 
             vpcInfoAreaElement.innerHTML = generateCidrDetailsHtml(currentVpcRange, "VPC") + "\n" + getVpcAllocationHtml();
@@ -856,6 +866,8 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
                 selectedSubnetCidr = null;
                 vpcBarElement.innerHTML = '';
                 clearPreview();
+                vpcCidrInput.classList.remove('input-error');
+                subnetCidrsInput.classList.remove('input-error');
                 infoArea.className = 'info-panel';
                 vpcInfoAreaElement.innerHTML = 'VPC details will appear here once visualized.';
                 infoArea.innerHTML = 'Enter CIDR blocks and click "Visualize". Click on empty space for suggestions or a subnet for its details.';
