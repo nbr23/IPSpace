@@ -381,12 +381,12 @@
             }
             if (firstOctet === 127) return 'A (Loopback)';
             if (firstOctet >= 128 && firstOctet <= 191) {
+                if (firstOctet === 169 && ((ipLong >>> 16) & 0xFF) === 254) return 'Link-Local (APIPA)';
                 if (firstOctet === 172 && ((ipLong >>> 16) & 0xFF) >= 16 && ((ipLong >>> 16) & 0xFF) <= 31) return 'B (Private)';
                 return 'B';
             }
             if (firstOctet >= 192 && firstOctet <= 223) {
                 if (firstOctet === 192 && ((ipLong >>> 16) & 0xFF) === 168) return 'C (Private)';
-                if (firstOctet === 169 && ((ipLong >>> 16) & 0xFF) === 254) return 'Link-Local (APIPA)';
                 return 'C';
             }
             if (firstOctet >= 224 && firstOctet <= 239) return 'D (Multicast)';
