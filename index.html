@@ -136,6 +136,13 @@
             z-index: 10;
         }
 
+        .subnetBar.selected {
+            background-color: #fd7e14;
+            border-right-color: #b35900;
+            opacity: 1;
+            z-index: 8;
+        }
+
         .subnetPreview {
             height: 100%;
             background-color: #28a745;
@@ -326,6 +333,7 @@
         let lastSuggestedCidr = null;
         let debounceTimer;
         let previewElement = null;
+        let selectedSubnetCidr = null;
 
         function ipToLong(ip) {
             return ip.split('.').reduce((acc, octet, index) =>
@@ -554,6 +562,10 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
             currentSubnetRanges.forEach(subnet => {
                 const subnetDiv = document.createElement('div');
                 subnetDiv.className = 'subnetBar';
+                subnetDiv.dataset.cidr = subnet.cidr;
+                if (subnet.cidr === selectedSubnetCidr) {
+                    subnetDiv.classList.add('selected');
+                }
                 const offset = subnet.start - currentVpcRange.start;
                 const widthPercentage = Math.max(0.1, (subnet.size / vpcTotalSize) * 100);
                 const leftPercentage = (offset / vpcTotalSize) * 100;
@@ -566,10 +578,22 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
             });
         }
 
+        function applySelectionToBars() {
+            const bars = vpcBarElement.querySelectorAll('.subnetBar');
+            bars.forEach(bar => {
+                if (bar.dataset.cidr === selectedSubnetCidr) {
+                    bar.classList.add('selected');
+                } else {
+                    bar.classList.remove('selected');
+                }
+            });
+        }
+
         function triggerVisualizationProcessing(source = "form_submit", updateUrl = true) {
             infoArea.innerHTML = 'Processing...';
             infoArea.className = 'info-panel';
             clearPreview();
+            selectedSubnetCidr = null;
 
             const vpcCidrStr = vpcCidrInput.value.trim();
             currentVpcRange = cidrToRange(vpcCidrStr);
@@ -652,10 +676,15 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
             for (const subnet of currentSubnetRanges) {
                 if (clickedIpLong >= subnet.start && clickedIpLong <= subnet.end) {
                     clearPreview();
+                    selectedSubnetCidr = subnet.cidr;
+                    applySelectionToBars();
                     infoArea.innerHTML = generateCidrDetailsHtml(subnet, "Subnet");
                     return;
                 }
             }
+
+            selectedSubnetCidr = null;
+            applySelectionToBars();
 
             let gapStartLong = currentVpcRange.start;
             let gapEndLong = currentVpcRange.end;
@@ -771,6 +800,7 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
             } else {
                 currentVpcRange = null;
                 currentSubnetRanges = [];
+                selectedSubnetCidr = null;
                 vpcBarElement.innerHTML = '';
                 clearPreview();
                 infoArea.className = 'info-panel';
