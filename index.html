@@ -9,8 +9,8 @@
         body {
             font-family: sans-serif;
             margin: 20px;
-            background-color: #f4f4f4;
-            color: #333;
+            background-color: #f1f5f9;
+            color: #1e293b;
         }
 
         .container {
@@ -24,7 +24,7 @@
 
         h1 {
             text-align: center;
-            color: #0056b3;
+            color: #0f172a;
         }
 
         form {
@@ -42,7 +42,7 @@
         textarea {
             width: 100%;
             padding: 10px;
-            border: 1px solid #ccc;
+            border: 1px solid #e2e8f0;
             border-radius: 4px;
             box-sizing: border-box;
             font-family: monospace;
@@ -50,13 +50,13 @@
 
         input[type="text"].input-error,
         textarea.input-error {
-            border-color: #dc3545;
-            background-color: #fff5f5;
+            border-color: #dc2626;
+            background-color: #fef2f2;
         }
 
         input[type="text"].input-error:focus,
         textarea.input-error:focus {
-            outline-color: #dc3545;
+            outline-color: #dc2626;
         }
 
         textarea {
@@ -66,7 +66,7 @@
 
         button:not(.add-subnet-inline-btn) {
             padding: 10px 15px;
-            background-color: #007bff;
+            background-color: #2563eb;
             color: white;
             border: none;
             border-radius: 4px;
@@ -75,7 +75,7 @@
         }
 
         button:not(.add-subnet-inline-btn):hover {
-            background-color: #0056b3;
+            background-color: #1d4ed8;
         }
 
         .info-panels-container {
@@ -88,8 +88,8 @@
         .info-panel {
             flex: 1;
             padding: 15px;
-            background-color: #f8f9fa;
-            border: 1px solid #ced4da;
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
             border-radius: 4px;
             min-height: 150px;
             font-family: monospace;
@@ -102,8 +102,8 @@
         }
 
         #vpcInfoArea {
-            background-color: #e6f7ff;
-            border-color: #91d5ff;
+            background-color: #eff6ff;
+            border-color: #bfdbfe;
         }
 
 
@@ -114,8 +114,8 @@
         #vpcBar {
             width: 100%;
             height: 60px;
-            background-color: #e9ecef;
-            border: 1px solid #adb5bd;
+            background-color: #f1f5f9;
+            border: 1px solid #cbd5e1;
             border-radius: 4px;
             position: relative;
             box-sizing: border-box;
@@ -125,9 +125,9 @@
 
         .subnetBar {
             height: 100%;
-            background-color: #007bff;
+            background-color: #2563eb;
             opacity: 0.7;
-            border-right: 1px solid #0056b3;
+            border-right: 1px solid #1d4ed8;
             position: absolute;
             box-sizing: border-box;
             color: white;
@@ -147,21 +147,26 @@
             z-index: 10;
         }
 
+        .subnetBar.alt {
+            background-color: #60a5fa;
+            border-right-color: #3b82f6;
+        }
+
         .subnetBar.selected {
-            background-color: #fd7e14;
-            border-right-color: #b35900;
+            background-color: #f97316;
+            border-right-color: #c2410c;
             opacity: 1;
             z-index: 8;
         }
 
         .subnetPreview {
             height: 100%;
-            background-color: #28a745;
+            background-color: #10b981;
             opacity: 0.3;
-            border: 2px dashed #28a745;
+            border: 2px dashed #10b981;
             position: absolute;
             box-sizing: border-box;
-            color: #00300b;
+            color: #064e3b;
             font-size: 11px;
             display: flex;
             align-items: center;
@@ -175,15 +180,15 @@
         }
 
         .error {
-            color: red;
+            color: #dc2626;
             font-weight: bold;
-            border-left: 3px solid red;
+            border-left: 3px solid #dc2626;
             padding-left: 7px;
         }
 
         .warning {
-            color: #856404;
-            border-left: 3px solid #ffc107;
+            color: #a16207;
+            border-left: 3px solid #facc15;
             padding-left: 7px;
         }
 
@@ -195,7 +200,7 @@
             position: absolute;
             top: 10px;
             right: 10px;
-            background-color: #28a745;
+            background-color: #10b981;
             color: white;
             border: none;
             border-radius: 50%;
@@ -210,48 +215,48 @@
         }
 
         .add-subnet-inline-btn:hover {
-            background-color: #1e7e34;
+            background-color: #059669;
         }
 
         .cleanup-link {
-            color: #007bff;
+            color: #2563eb;
             text-decoration: underline;
             cursor: pointer;
             font-weight: normal;
         }
 
         .cleanup-link:hover {
-            color: #0056b3;
+            color: #1d4ed8;
             text-decoration: none;
         }
 
         hr {
             border: 0;
             height: 1px;
-            background: #ccc;
+            background: #e2e8f0;
             margin: 10px 0;
         }
 
         .allocation-info {
             margin-top: 10px;
             padding-top: 10px;
-            border-top: 1px dashed #91d5ff;
+            border-top: 1px dashed #bfdbfe;
         }
 
         .allocation-full {
-            color: #007bff;
+            color: #2563eb;
             font-weight: bold;
         }
 
         .cidr-nav-link {
-            color: #007bff;
+            color: #2563eb;
             text-decoration: underline;
             cursor: pointer;
             font-family: monospace;
         }
 
         .cidr-nav-link:hover {
-            color: #0056b3;
+            color: #1d4ed8;
             text-decoration: none;
         }
 
@@ -583,9 +588,10 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
             if (!currentVpcRange) return;
             const vpcTotalSize = currentVpcRange.size;
             if (vpcTotalSize === 0) return;
-            currentSubnetRanges.forEach(subnet => {
+            currentSubnetRanges.forEach((subnet, idx) => {
                 const subnetDiv = document.createElement('div');
                 subnetDiv.className = 'subnetBar';
+                if (idx % 2 === 1) subnetDiv.classList.add('alt');
                 subnetDiv.dataset.cidr = subnet.cidr;
                 if (subnet.cidr === selectedSubnetCidr) {
                     subnetDiv.classList.add('selected');
