@@ -329,7 +329,7 @@
 
         function ipToLong(ip) {
             return ip.split('.').reduce((acc, octet, index) =>
-                acc + (parseInt(octet) << (24 - index * 8)), 0) >>> 0;
+                acc + (parseInt(octet, 10) << (24 - index * 8)), 0) >>> 0;
         }
 
         function longToIp(long) {
@@ -346,10 +346,14 @@
             const match = cidr.match(cidrRegex);
             if (!match) return false;
             const [, ip, prefixStr] = match;
-            const prefix = parseInt(prefixStr);
+            const prefix = parseInt(prefixStr, 10);
             if (prefix < 0 || prefix > 32) return false;
-            const octets = ip.split('.').map(Number);
-            if (octets.some(octet => octet < 0 || octet > 255)) return false;
+            const octetStrs = ip.split('.');
+            for (const s of octetStrs) {
+                if (s.length > 1 && s[0] === '0') return false;
+                const n = parseInt(s, 10);
+                if (n < 0 || n > 255) return false;
+            }
             return true;
         }
 
@@ -446,12 +450,9 @@
             } else if (rangeObject.prefix === 31) {
                 usableIpsCount = 2;
                 usableRangeStr = `${longToIp(rangeObject.start)} - ${longToIp(rangeObject.end)}`;
-            } else if (rangeObject.size > 2) {
+            } else {
                 usableIpsCount = rangeObject.size - 2;
                 usableRangeStr = `${longToIp(rangeObject.start + 1)} - ${longToIp(rangeObject.end - 1)}`;
-            } else {
-                usableIpsCount = 0;
-                usableRangeStr = "N/A";
             }
             const addButtonHtml = (type === "Suggested New Subnet") ? '<button class="add-subnet-inline-btn" title="Add this subnet to list">+</button>' : '';
 
@@ -516,8 +517,8 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
         function clearPreview() {
             if (previewElement && previewElement.parentNode) {
                 previewElement.parentNode.removeChild(previewElement);
-                previewElement = null;
             }
+            previewElement = null;
         }
 
         function showSubnetPreview(subnet) {
