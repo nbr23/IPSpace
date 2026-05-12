@@ -584,28 +584,19 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
             }
             const subnetCidrLines = subnetCidrsInput.value.trim().split('\n');
             currentSubnetRanges = [];
+            const subnetErrors = [];
 
             for (const line of subnetCidrLines) {
                 const subnetCidrStr = line.trim();
                 if (!subnetCidrStr) continue;
                 const subnetRange = cidrToRange(subnetCidrStr);
                 if (!subnetRange) {
-                    infoArea.innerHTML = `Invalid Subnet CIDR: ${subnetCidrStr}`;
-                    infoArea.classList.add('error');
-                    currentSubnetRanges = [];
-                    vpcInfoAreaElement.innerHTML = generateCidrDetailsHtml(currentVpcRange, "VPC") + "\n" + getVpcAllocationHtml();
-                    renderSubnets();
-                    if (updateUrl) updateURLFromForm();
-                    return;
+                    subnetErrors.push(`Invalid Subnet CIDR: ${subnetCidrStr}`);
+                    continue;
                 }
                 if (subnetRange.start < currentVpcRange.start || subnetRange.end > currentVpcRange.end) {
-                    infoArea.innerHTML = `Subnet ${subnetRange.cidr} (from input ${subnetRange.originalInput}) is outside VPC ${currentVpcRange.cidr}.`;
-                    infoArea.classList.add('error');
-                    currentSubnetRanges = [];
-                    vpcInfoAreaElement.innerHTML = generateCidrDetailsHtml(currentVpcRange, "VPC") + "\n" + getVpcAllocationHtml();
-                    renderSubnets();
-                    if (updateUrl) updateURLFromForm();
-                    return;
+                    subnetErrors.push(`Subnet ${subnetRange.cidr} (from input ${subnetRange.originalInput}) is outside VPC ${currentVpcRange.cidr}.`);
+                    continue;
                 }
                 currentSubnetRanges.push(subnetRange);
             }
@@ -624,13 +615,16 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
             }
             renderSubnets();
 
-            let mainInfoMessage = 'Visualization updated. Click on empty space for suggestions or a subnet for its details.';
-            if (infoArea.classList.contains('error')) {
+            const mainInfoMessage = 'Visualization updated. Click on empty space for suggestions or a subnet for its details.';
+            const sections = [];
+            if (subnetErrors.length > 0) sections.push(subnetErrors.join('\n'));
+            if (overlapWarning) sections.push(overlapWarning.trim());
+            sections.push(mainInfoMessage);
+            infoArea.innerHTML = sections.join('\n<hr>');
+            if (subnetErrors.length > 0) {
+                infoArea.classList.add('error');
             } else if (overlapWarning) {
-                infoArea.innerHTML = overlapWarning.trim() + "\n<hr>" + mainInfoMessage;
                 infoArea.classList.add('warning');
-            } else {
-                infoArea.innerHTML = mainInfoMessage;
             }
             if (updateUrl) updateURLFromForm();
         }
