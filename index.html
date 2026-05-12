@@ -22,32 +22,32 @@
             margin: auto;
         }
 
-        h1 {
-            text-align: center;
-            color: #0f172a;
-            font-size: 1.25em;
-            margin: 0 0 16px;
-        }
-
         form {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             display: grid;
             grid-template-columns: 1fr;
             gap: 10px;
         }
 
         label {
-            font-weight: bold;
+            display: block;
+            font-weight: 600;
+            font-size: 0.72em;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 4px;
         }
 
         input[type="text"],
         textarea {
             width: 100%;
-            padding: 10px;
+            padding: 8px 10px;
             border: 1px solid #e2e8f0;
             border-radius: 4px;
             box-sizing: border-box;
-            font-family: monospace;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 14px;
         }
 
         input[type="text"].input-error,
@@ -62,18 +62,19 @@
         }
 
         textarea {
-            min-height: 80px;
+            min-height: 120px;
             resize: vertical;
         }
 
         button:not(.add-subnet-inline-btn) {
-            padding: 10px 15px;
+            padding: 8px 16px;
             background-color: #2563eb;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 14px;
+            justify-self: start;
         }
 
         button:not(.add-subnet-inline-btn):hover {
@@ -83,7 +84,6 @@
         .info-panels-container {
             display: flex;
             gap: 20px;
-            margin-top: 20px;
             margin-bottom: 20px;
         }
 
@@ -135,14 +135,15 @@
 
         #visualizationArea {
             position: relative;
+            margin-bottom: 20px;
         }
 
         #vpcBar {
             width: 100%;
-            height: 60px;
+            height: 110px;
             background-color: #f1f5f9;
             border: 1px solid #cbd5e1;
-            border-radius: 4px;
+            border-radius: 6px;
             position: relative;
             box-sizing: border-box;
             overflow: hidden;
@@ -359,28 +360,27 @@
         </svg>
     </a>
     <div class="container">
-        <h1>IP Space Visualizer</h1>
         <form id="ipForm">
             <div>
-                <label for="vpcCidr">VPC CIDR Block:</label>
+                <label for="vpcCidr">VPC CIDR</label>
                 <input type="text" id="vpcCidr" name="vpcCidr" placeholder="e.g., 10.0.0.0/16" required>
             </div>
             <div>
-                <label for="subnetCidrs">Subnet CIDR Blocks (one per line):</label>
+                <label for="subnetCidrs">Subnet CIDRs (one per line)</label>
                 <textarea id="subnetCidrs" name="subnetCidrs" placeholder="e.g., 10.0.1.0/24
 10.0.2.0/24"></textarea>
             </div>
             <button type="submit">Visualize</button>
         </form>
 
+        <div id="visualizationArea">
+            <div id="vpcBar" title="VPC Total Space"></div>
+        </div>
+
         <div class="info-panels-container">
             <div id="vpcInfoArea" class="info-panel">VPC details will appear here once visualized.</div>
             <div id="infoArea" class="info-panel">Enter CIDR blocks and click "Visualize". Click on empty space for
                 suggestions or a subnet for its details.</div>
-        </div>
-
-        <div id="visualizationArea">
-            <div id="vpcBar" title="VPC Total Space"></div>
         </div>
     </div>
 
