@@ -615,9 +615,10 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
 
 
             let overlapWarning = "";
-            for (let i = 0; i < currentSubnetRanges.length - 1; i++) {
-                if (currentSubnetRanges[i].end >= currentSubnetRanges[i + 1].start) {
-                    overlapWarning += `Warning: Subnets ${currentSubnetRanges[i].cidr} and ${currentSubnetRanges[i + 1].cidr} overlap.\n`;
+            for (let i = 0; i < currentSubnetRanges.length; i++) {
+                for (let j = i + 1; j < currentSubnetRanges.length; j++) {
+                    if (currentSubnetRanges[j].start > currentSubnetRanges[i].end) break;
+                    overlapWarning += `Warning: Subnets ${currentSubnetRanges[i].cidr} and ${currentSubnetRanges[j].cidr} overlap.\n`;
                 }
             }
             renderSubnets();
