@@ -25,6 +25,8 @@
         h1 {
             text-align: center;
             color: #0f172a;
+            font-size: 1.25em;
+            margin: 0 0 16px;
         }
 
         form {
@@ -92,13 +94,37 @@
             border: 1px solid #cbd5e1;
             border-radius: 4px;
             min-height: 150px;
-            font-family: monospace;
-            white-space: pre-wrap;
             font-size: 0.9em;
-            line-height: 1.4;
-            overflow-y: auto;
-            max-height: 400px;
+            line-height: 1.5;
             position: relative;
+        }
+
+        .info-panel dl {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            column-gap: 14px;
+            row-gap: 3px;
+            margin: 6px 0 0;
+        }
+
+        .info-panel dt {
+            color: #64748b;
+        }
+
+        .info-panel dd {
+            margin: 0;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-variant-numeric: tabular-nums;
+            word-break: break-word;
+        }
+
+        .details-title {
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .muted {
+            color: #94a3b8;
         }
 
         #vpcInfoArea {
@@ -276,8 +302,18 @@
                 flex-direction: column;
             }
 
-            .info-panel {
-                max-height: 300px;
+            .info-panel dl {
+                grid-template-columns: 1fr;
+                row-gap: 0;
+            }
+
+            .info-panel dt {
+                margin-top: 6px;
+                font-size: 0.85em;
+            }
+
+            .info-panel dl > dt:first-child {
+                margin-top: 0;
             }
 
             .add-subnet-inline-btn {
@@ -480,7 +516,7 @@
         function generateCidrDetailsHtml(rangeObject, type = "Subnet") {
             if (!rangeObject) return "";
             let usableIpsCount;
-            let usableRangeStr = "";
+            let usableRangeStr;
             if (rangeObject.prefix === 32) {
                 usableIpsCount = 1;
                 usableRangeStr = `${longToIp(rangeObject.start)} (single host)`;
@@ -492,39 +528,33 @@
                 usableRangeStr = `${longToIp(rangeObject.start + 1)} - ${longToIp(rangeObject.end - 1)}`;
             }
             const addButtonHtml = (type === "Suggested New Subnet") ? '<button class="add-subnet-inline-btn" title="Add this subnet to list">+</button>' : '';
+            const label = rangeObject.originalInput || rangeObject.cidr;
 
-            let html = `${addButtonHtml}<strong>${type} Details (${rangeObject.originalInput || rangeObject.cidr}):</strong>
-CIDR Block:          ${rangeObject.cidr}
-Network Address:     ${longToIp(rangeObject.start)}
-Broadcast Address:   ${longToIp(rangeObject.end)}
-Netmask:             ${prefixToNetmask(rangeObject.prefix)} (${rangeObject.prefix})
-IP Class (of Net):   ${getIpClass(rangeObject.start)}
-Total IPs in Block:  ${rangeObject.size.toLocaleString()}
-Usable Host IPs:     ${usableIpsCount.toLocaleString()}
-Usable Host Range:   ${usableRangeStr}
-Full IP Range:       ${longToIp(rangeObject.start)} - ${longToIp(rangeObject.end)}`;
+            const rows = [
+                ['CIDR Block', rangeObject.cidr],
+                ['Network Address', longToIp(rangeObject.start)],
+                ['Broadcast Address', longToIp(rangeObject.end)],
+                ['Netmask', `${prefixToNetmask(rangeObject.prefix)} (${rangeObject.prefix})`],
+                ['IP Class', getIpClass(rangeObject.start)],
+                ['Total IPs', rangeObject.size.toLocaleString()],
+                ['Usable Host IPs', usableIpsCount.toLocaleString()],
+                ['Usable Host Range', usableRangeStr],
+                ['Full IP Range', `${longToIp(rangeObject.start)} - ${longToIp(rangeObject.end)}`],
+            ];
 
             if (type === "VPC") {
                 const prevBlock = getPreviousContiguousCidr(rangeObject);
-                if (prevBlock) {
-                    html += `
-Prev Contiguous:     <span class="cidr-nav-link" data-cidr="${prevBlock.cidr}">${prevBlock.cidr}</span>`;
-                } else {
-                    html += `
-Prev Contiguous:     N/A (would underflow IPv4 space)`;
-                }
-
+                rows.push(['Prev Contiguous', prevBlock
+                    ? `<span class="cidr-nav-link" data-cidr="${prevBlock.cidr}">${prevBlock.cidr}</span>`
+                    : `<span class="muted">N/A (would underflow IPv4 space)</span>`]);
                 const nextBlock = getNextContiguousCidr(rangeObject);
-                if (nextBlock) {
-                    html += `
-Next Contiguous:     <span class="cidr-nav-link" data-cidr="${nextBlock.cidr}">${nextBlock.cidr}</span>`;
-                } else {
-                    html += `
-Next Contiguous:     N/A (would overflow IPv4 space)`;
-                }
+                rows.push(['Next Contiguous', nextBlock
+                    ? `<span class="cidr-nav-link" data-cidr="${nextBlock.cidr}">${nextBlock.cidr}</span>`
+                    : `<span class="muted">N/A (would overflow IPv4 space)</span>`]);
             }
 
-            return html.trim();
+            const rowsHtml = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+            return `${addButtonHtml}<strong class="details-title">${type} Details (${label})</strong><dl>${rowsHtml}</dl>`;
         }
 
         function getVpcAllocationHtml() {
@@ -533,22 +563,23 @@ Next Contiguous:     N/A (would overflow IPv4 space)`;
             let totalAllocatedSize = 0;
             currentSubnetRanges.forEach(subnet => totalAllocatedSize += subnet.size);
 
-            const freeSize = currentVpcRange.size - totalAllocatedSize;
-            const allocatedPercentage = (totalAllocatedSize / currentVpcRange.size) * 100;
+            const freeSize = Math.max(0, currentVpcRange.size - totalAllocatedSize);
+            const allocatedPct = (totalAllocatedSize / currentVpcRange.size) * 100;
+            const freePct = (freeSize / currentVpcRange.size) * 100;
 
-            let allocationSummary = `
-<div class="allocation-info">
-<strong>VPC Allocation Status:</strong>
-Total IPs in VPC:      ${currentVpcRange.size.toLocaleString()}
-Approx. Allocated IPs: ${totalAllocatedSize.toLocaleString()} (${allocatedPercentage.toFixed(2)}%)
-Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0, freeSize) / currentVpcRange.size * 100).toFixed(2)}%)`;
+            let html = `<div class="allocation-info">`
+                + `<strong class="details-title">VPC Allocation Status</strong>`
+                + `<dl>`
+                + `<dt>Total IPs in VPC</dt><dd>${currentVpcRange.size.toLocaleString()}</dd>`
+                + `<dt>Approx. Allocated</dt><dd>${totalAllocatedSize.toLocaleString()} (${allocatedPct.toFixed(2)}%)</dd>`
+                + `<dt>Approx. Free</dt><dd>${freeSize.toLocaleString()} (${freePct.toFixed(2)}%)</dd>`
+                + `</dl>`;
 
             if (totalAllocatedSize >= currentVpcRange.size) {
-                allocationSummary += `
-<span class="allocation-full">VPC space is fully (or over) allocated by defined subnets.</span>`;
+                html += `<div class="allocation-full">VPC space is fully (or over) allocated by defined subnets.</div>`;
             }
-            allocationSummary += `</div>`;
-            return allocationSummary;
+            html += `</div>`;
+            return html;
         }
 
         function clearPreview() {
@@ -672,11 +703,11 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
             vpcBarElement.title = `VPC: ${currentVpcRange.cidr} (Size: ${currentVpcRange.size.toLocaleString()} IPs)`;
 
 
-            let overlapWarning = "";
+            const overlapMessages = [];
             for (let i = 0; i < currentSubnetRanges.length; i++) {
                 for (let j = i + 1; j < currentSubnetRanges.length; j++) {
                     if (currentSubnetRanges[j].start > currentSubnetRanges[i].end) break;
-                    overlapWarning += `Warning: Subnets ${currentSubnetRanges[i].cidr} and ${currentSubnetRanges[j].cidr} overlap.\n`;
+                    overlapMessages.push(`Warning: Subnets ${currentSubnetRanges[i].cidr} and ${currentSubnetRanges[j].cidr} overlap.`);
                 }
             }
             renderSubnets();
@@ -684,18 +715,18 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
             const mainInfoMessage = 'Visualization updated. Click on empty space for suggestions or a subnet for its details.';
             const sections = [];
             if (subnetErrors.length > 0) {
-                let errorSection = subnetErrors.join('\n');
+                let errorSection = subnetErrors.join('<br>');
                 if (faultyInputs.length > 0) {
-                    errorSection += `\n<span class="cleanup-link" title="Remove invalid entries from the subnet list" role="button" tabindex="0">remove invalid entr${faultyInputs.length === 1 ? 'y' : 'ies'}</span>`;
+                    errorSection += `<br><span class="cleanup-link" title="Remove invalid entries from the subnet list" role="button" tabindex="0">remove invalid entr${faultyInputs.length === 1 ? 'y' : 'ies'}</span>`;
                 }
                 sections.push(errorSection);
             }
-            if (overlapWarning) sections.push(overlapWarning.trim());
+            if (overlapMessages.length > 0) sections.push(overlapMessages.join('<br>'));
             sections.push(mainInfoMessage);
-            infoArea.innerHTML = sections.join('\n<hr>');
+            infoArea.innerHTML = sections.join('<hr>');
             if (subnetErrors.length > 0) {
                 infoArea.classList.add('error');
-            } else if (overlapWarning) {
+            } else if (overlapMessages.length > 0) {
                 infoArea.classList.add('warning');
             }
             const cleanupLink = infoArea.querySelector('.cleanup-link');
