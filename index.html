@@ -766,20 +766,20 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
             const params = new URLSearchParams(window.location.search);
             const vpcParam = params.get('vpc');
             const subnetsParam = params.get('subnets');
-            let paramsLoaded = false;
 
-            if (vpcParam) {
-                vpcCidrInput.value = vpcParam;
-                paramsLoaded = true;
-            }
-            if (subnetsParam) {
-                const subnetArray = subnetsParam.split(',');
-                subnetCidrsInput.value = subnetArray.map(s => s.trim()).join('\n');
-                paramsLoaded = true;
-            }
-            if (paramsLoaded) {
+            vpcCidrInput.value = vpcParam || '';
+            subnetCidrsInput.value = subnetsParam
+                ? subnetsParam.split(',').map(s => s.trim()).join('\n')
+                : '';
+
+            if (vpcParam || subnetsParam) {
                 triggerVisualizationProcessing("url_params", false);
             } else {
+                currentVpcRange = null;
+                currentSubnetRanges = [];
+                vpcBarElement.innerHTML = '';
+                clearPreview();
+                infoArea.className = 'info-panel';
                 vpcInfoAreaElement.innerHTML = 'VPC details will appear here once visualized.';
                 infoArea.innerHTML = 'Enter CIDR blocks and click "Visualize". Click on empty space for suggestions or a subnet for its details.';
             }
@@ -806,7 +806,11 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
             }
         });
 
-        window.addEventListener('DOMContentLoaded', (event) => {
+        window.addEventListener('DOMContentLoaded', () => {
+            loadParamsFromURL();
+        });
+
+        window.addEventListener('popstate', () => {
             loadParamsFromURL();
         });
 
