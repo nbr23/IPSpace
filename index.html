@@ -362,6 +362,15 @@
             ].join('.');
         }
 
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function validateCidr(cidr) {
             const cidrRegex = /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d{1,2})$/;
             const match = cidr.match(cidrRegex);
@@ -629,7 +638,7 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
                 if (!subnetCidrStr) continue;
                 const subnetRange = cidrToRange(subnetCidrStr);
                 if (!subnetRange) {
-                    subnetErrors.push(`Invalid Subnet CIDR: ${subnetCidrStr}`);
+                    subnetErrors.push(`Invalid Subnet CIDR: ${escapeHtml(subnetCidrStr)}`);
                     faultyInputs.push(subnetCidrStr);
                     continue;
                 }
