@@ -202,6 +202,18 @@
             background-color: #1e7e34;
         }
 
+        .cleanup-link {
+            color: #007bff;
+            text-decoration: underline;
+            cursor: pointer;
+            font-weight: normal;
+        }
+
+        .cleanup-link:hover {
+            color: #0056b3;
+            text-decoration: none;
+        }
+
         hr {
             border: 0;
             height: 1px;
@@ -334,6 +346,7 @@
         let debounceTimer;
         let previewElement = null;
         let selectedSubnetCidr = null;
+        let lastFaultyInputs = [];
 
         function ipToLong(ip) {
             return ip.split('.').reduce((acc, octet, index) =>
@@ -609,6 +622,7 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
             const subnetCidrLines = subnetCidrsInput.value.trim().split('\n');
             currentSubnetRanges = [];
             const subnetErrors = [];
+            const faultyInputs = [];
 
             for (const line of subnetCidrLines) {
                 const subnetCidrStr = line.trim();
@@ -616,14 +630,17 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
                 const subnetRange = cidrToRange(subnetCidrStr);
                 if (!subnetRange) {
                     subnetErrors.push(`Invalid Subnet CIDR: ${subnetCidrStr}`);
+                    faultyInputs.push(subnetCidrStr);
                     continue;
                 }
                 if (subnetRange.start < currentVpcRange.start || subnetRange.end > currentVpcRange.end) {
                     subnetErrors.push(`Subnet ${subnetRange.cidr} (from input ${subnetRange.originalInput}) is outside VPC ${currentVpcRange.cidr}.`);
+                    faultyInputs.push(subnetCidrStr);
                     continue;
                 }
                 currentSubnetRanges.push(subnetRange);
             }
+            lastFaultyInputs = faultyInputs;
             currentSubnetRanges.sort((a, b) => a.start - b.start);
 
             vpcInfoAreaElement.innerHTML = generateCidrDetailsHtml(currentVpcRange, "VPC") + "\n" + getVpcAllocationHtml();
@@ -641,7 +658,13 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
 
             const mainInfoMessage = 'Visualization updated. Click on empty space for suggestions or a subnet for its details.';
             const sections = [];
-            if (subnetErrors.length > 0) sections.push(subnetErrors.join('\n'));
+            if (subnetErrors.length > 0) {
+                let errorSection = subnetErrors.join('\n');
+                if (faultyInputs.length > 0) {
+                    errorSection += `\n<span class="cleanup-link" title="Remove invalid entries from the subnet list" role="button" tabindex="0">remove invalid entr${faultyInputs.length === 1 ? 'y' : 'ies'}</span>`;
+                }
+                sections.push(errorSection);
+            }
             if (overlapWarning) sections.push(overlapWarning.trim());
             sections.push(mainInfoMessage);
             infoArea.innerHTML = sections.join('\n<hr>');
@@ -650,7 +673,28 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
             } else if (overlapWarning) {
                 infoArea.classList.add('warning');
             }
+            const cleanupLink = infoArea.querySelector('.cleanup-link');
+            if (cleanupLink) {
+                cleanupLink.addEventListener('click', handleCleanupFaultyInputs);
+                cleanupLink.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleCleanupFaultyInputs();
+                    }
+                });
+            }
             if (updateUrl) updateURLFromForm();
+        }
+
+        function handleCleanupFaultyInputs() {
+            if (!lastFaultyInputs.length) return;
+            const faulty = new Set(lastFaultyInputs);
+            const cleaned = subnetCidrsInput.value
+                .split('\n')
+                .filter(line => !faulty.has(line.trim()))
+                .join('\n');
+            subnetCidrsInput.value = cleaned;
+            triggerVisualizationProcessing("cleanup");
         }
 
         ipForm.addEventListener('submit', function (event) {
