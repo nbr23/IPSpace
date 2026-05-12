@@ -651,10 +651,8 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
 
             const rect = vpcBarElement.getBoundingClientRect();
             const clickX = event.clientX - rect.left;
-            const barWidth = vpcBarElement.offsetWidth;
-
-            const clickRatio = clickX / barWidth;
-            const clickedIpOffset = Math.floor(clickRatio * currentVpcRange.size);
+            const clickRatio = clickX / rect.width;
+            const clickedIpOffset = Math.min(currentVpcRange.size - 1, Math.max(0, Math.floor(clickRatio * currentVpcRange.size)));
             const clickedIpLong = currentVpcRange.start + clickedIpOffset;
 
             for (const subnet of currentSubnetRanges) {
