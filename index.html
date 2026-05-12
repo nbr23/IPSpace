@@ -53,6 +53,20 @@
             resize: vertical;
         }
 
+        button:not(.add-subnet-inline-btn) {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:not(.add-subnet-inline-btn):hover {
+            background-color: #0056b3;
+        }
+
         .info-panels-container {
             display: flex;
             gap: 20px;
@@ -292,6 +306,7 @@
                 <textarea id="subnetCidrs" name="subnetCidrs" placeholder="e.g., 10.0.1.0/24
 10.0.2.0/24"></textarea>
             </div>
+            <button type="submit">Visualize</button>
         </form>
 
         <div class="info-panels-container">
@@ -640,7 +655,6 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
 
         ipForm.addEventListener('submit', function (event) {
             event.preventDefault();
-            clearTimeout(debounceTimer);
             triggerVisualizationProcessing("form_submit");
         });
 
@@ -798,7 +812,7 @@ Approx. Free IPs:      ${Math.max(0, freeSize).toLocaleString()} (${(Math.max(0,
         function handleFormInputChange() {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
-                triggerVisualizationProcessing("live_update");
+                updateURLFromForm();
             }, 750);
         }
 
