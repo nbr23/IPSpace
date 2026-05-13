@@ -257,6 +257,79 @@
             text-decoration: none;
         }
 
+        .subnet-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .subnet-action-btn {
+            padding: 4px 10px;
+            font-size: 12px;
+            background-color: #e2e8f0;
+            color: #1e293b;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .subnet-action-btn:hover {
+            background-color: #cbd5e1;
+        }
+
+        .subnet-action-btn.danger {
+            color: #dc2626;
+            border-color: #fecaca;
+            background-color: #fef2f2;
+        }
+
+        .subnet-action-btn.danger:hover {
+            background-color: #fee2e2;
+        }
+
+        .split-target-form,
+        .fit-subnets-form {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .split-target-form label,
+        .fit-subnets-form label {
+            display: inline;
+            font-size: 0.85em;
+            color: #64748b;
+            text-transform: none;
+            letter-spacing: 0;
+            margin: 0;
+        }
+
+        .split-target-form input[type="number"],
+        .fit-subnets-form input[type="number"] {
+            width: 70px;
+            padding: 4px 6px;
+            font-size: 13px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        .fit-subnets-status {
+            margin-top: 6px;
+            font-size: 0.85em;
+            color: #64748b;
+        }
+
+        .fit-subnets-status.error {
+            color: #dc2626;
+        }
+
         hr {
             border: 0;
             height: 1px;
@@ -404,6 +477,7 @@
         let previewElement = null;
         let selectedSubnetCidr = null;
         let lastFaultyInputs = [];
+        let lastClickedGap = null;
 
         function ipToLong(ip) {
             return ip.split('.').reduce((acc, octet, index) =>
@@ -518,6 +592,43 @@
             };
         }
 
+        function splitSubnet(range, targetPrefix) {
+            if (!range) return null;
+            if (targetPrefix <= range.prefix || targetPrefix > 32) return null;
+            const blockSize = Math.pow(2, 32 - targetPrefix);
+            const cidrs = [];
+            for (let addr = range.start; addr <= range.end; addr += blockSize) {
+                cidrs.push(`${longToIp(addr)}/${targetPrefix}`);
+            }
+            return cidrs;
+        }
+
+        function fitSubnetsInGap(gapStartLong, gapEndLong, count, prefix) {
+            if (!Number.isInteger(count) || count < 1) return null;
+            if (!Number.isInteger(prefix) || prefix < 0 || prefix > 32) return null;
+            const blockSize = Math.pow(2, 32 - prefix);
+            const firstAligned = Math.ceil(gapStartLong / blockSize) * blockSize;
+            const lastEnd = firstAligned + (count * blockSize) - 1;
+            if (lastEnd > gapEndLong) return null;
+            if (lastEnd > 0xFFFFFFFF) return null;
+            const cidrs = [];
+            for (let i = 0; i < count; i++) {
+                cidrs.push(`${longToIp(firstAligned + i * blockSize)}/${prefix}`);
+            }
+            return cidrs;
+        }
+
+        function findSubnetLineIndex(cidr) {
+            const lines = subnetCidrsInput.value.split('\n');
+            for (let i = 0; i < lines.length; i++) {
+                const trimmed = lines[i].trim();
+                if (!trimmed) continue;
+                const range = cidrToRange(trimmed);
+                if (range && range.cidr === cidr) return i;
+            }
+            return -1;
+        }
+
         function generateCidrDetailsHtml(rangeObject, type = "Subnet") {
             if (!rangeObject) return "";
             let usableIpsCount;
@@ -559,7 +670,19 @@
             }
 
             const rowsHtml = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
-            return `${addButtonHtml}<strong class="details-title">${type} Details (${label})</strong><dl>${rowsHtml}</dl>`;
+            let actionsHtml = '';
+            if (type === "Subnet") {
+                const canSplit = rangeObject.prefix < 32;
+                const halveBtn = canSplit
+                    ? `<button class="subnet-action-btn split-half-btn" data-cidr="${rangeObject.cidr}">Split in half</button>`
+                    : '';
+                const advancedBtn = canSplit
+                    ? `<button class="subnet-action-btn split-advanced-btn" data-cidr="${rangeObject.cidr}">Split into…</button>`
+                    : '';
+                const removeBtn = `<button class="subnet-action-btn danger remove-subnet-btn" data-cidr="${rangeObject.cidr}">Remove</button>`;
+                actionsHtml = `<div class="subnet-actions">${halveBtn}${advancedBtn}${removeBtn}</div>`;
+            }
+            return `${addButtonHtml}<strong class="details-title">${type} Details (${label})</strong><dl>${rowsHtml}</dl>${actionsHtml}`;
         }
 
         function getVpcAllocationHtml() {
@@ -784,6 +907,7 @@
                     selectedSubnetCidr = subnet.cidr;
                     applySelectionToBars();
                     infoArea.innerHTML = generateCidrDetailsHtml(subnet, "Subnet");
+                    attachSubnetActionHandlers(subnet);
                     return;
                 }
             }
@@ -821,15 +945,19 @@
 
             if (largestCidrObj) {
                 lastSuggestedCidr = largestCidrObj.cidr;
+                lastClickedGap = { start: gapStartLong, end: gapEndLong };
                 showSubnetPreview(largestCidrObj);
                 const suggestedDetails = generateCidrDetailsHtml(largestCidrObj, "Suggested New Subnet");
-                infoArea.innerHTML = `<strong>Selected IP: ${longToIp(clickedIpLong)} in empty space [${longToIp(gapStartLong)} - ${longToIp(gapEndLong)}]</strong><hr>${suggestedDetails}`;
+                const fitFormHtml = buildFitFormHtml(largestCidrObj.prefix);
+                infoArea.innerHTML = `<strong>Selected IP: ${longToIp(clickedIpLong)} in empty space [${longToIp(gapStartLong)} - ${longToIp(gapEndLong)}]</strong><hr>${suggestedDetails}${fitFormHtml}`;
                 const dynamicAddBtn = infoArea.querySelector('.add-subnet-inline-btn');
                 if (dynamicAddBtn) {
                     dynamicAddBtn.addEventListener('click', handleAddSuggestedSubnet);
                 }
+                attachFitFormHandlers();
             } else {
                 clearPreview();
+                lastClickedGap = null;
                 infoArea.innerHTML = `<strong>Selected IP: ${longToIp(clickedIpLong)}</strong><br>No suitable CIDR found for the empty space [${longToIp(gapStartLong)} - ${longToIp(gapEndLong)}] containing the click.`;
             }
         });
@@ -865,6 +993,159 @@
                 triggerVisualizationProcessing("add_subnet_button");
                 lastSuggestedCidr = null;
             }
+        }
+
+        function attachSubnetActionHandlers(subnet) {
+            const halveBtn = infoArea.querySelector('.split-half-btn');
+            if (halveBtn) {
+                halveBtn.addEventListener('click', () => {
+                    handleSplitSubnet(subnet.cidr, subnet.prefix + 1);
+                });
+            }
+
+            const advancedBtn = infoArea.querySelector('.split-advanced-btn');
+            if (advancedBtn) {
+                advancedBtn.addEventListener('click', () => {
+                    showSplitTargetForm(subnet);
+                });
+            }
+
+            const removeBtn = infoArea.querySelector('.remove-subnet-btn');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', () => {
+                    handleRemoveSubnet(subnet.cidr);
+                });
+            }
+        }
+
+        function showSplitTargetForm(subnet) {
+            const actionsDiv = infoArea.querySelector('.subnet-actions');
+            if (!actionsDiv) return;
+            const defaultPrefix = Math.min(32, subnet.prefix + 2);
+            actionsDiv.outerHTML = `<div class="split-target-form">`
+                + `<label for="splitTargetPrefix">Split into /</label>`
+                + `<input type="number" id="splitTargetPrefix" min="${subnet.prefix + 1}" max="32" value="${defaultPrefix}">`
+                + `<button class="subnet-action-btn split-apply-btn">Apply</button>`
+                + `<button class="subnet-action-btn split-cancel-btn">Cancel</button>`
+                + `</div>`;
+            const input = infoArea.querySelector('#splitTargetPrefix');
+            const applyBtn = infoArea.querySelector('.split-apply-btn');
+            const cancelBtn = infoArea.querySelector('.split-cancel-btn');
+            const apply = () => {
+                const target = parseInt(input.value, 10);
+                if (Number.isInteger(target) && target > subnet.prefix && target <= 32) {
+                    handleSplitSubnet(subnet.cidr, target);
+                }
+            };
+            applyBtn.addEventListener('click', apply);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    apply();
+                }
+            });
+            cancelBtn.addEventListener('click', () => {
+                infoArea.innerHTML = generateCidrDetailsHtml(subnet, "Subnet");
+                attachSubnetActionHandlers(subnet);
+            });
+            input.focus();
+            input.select();
+        }
+
+        function handleSplitSubnet(cidr, targetPrefix) {
+            const range = cidrToRange(cidr);
+            if (!range) return;
+            const newCidrs = splitSubnet(range, targetPrefix);
+            if (!newCidrs) return;
+            const idx = findSubnetLineIndex(cidr);
+            const lines = subnetCidrsInput.value.split('\n');
+            if (idx >= 0) {
+                lines.splice(idx, 1, ...newCidrs);
+            } else {
+                for (const c of newCidrs) lines.push(c);
+            }
+            subnetCidrsInput.value = lines.join('\n').replace(/\n+$/, '');
+            selectedSubnetCidr = null;
+            triggerVisualizationProcessing("split_subnet");
+        }
+
+        function handleRemoveSubnet(cidr) {
+            const idx = findSubnetLineIndex(cidr);
+            if (idx < 0) return;
+            const lines = subnetCidrsInput.value.split('\n');
+            lines.splice(idx, 1);
+            subnetCidrsInput.value = lines.join('\n').replace(/\n+$/, '');
+            selectedSubnetCidr = null;
+            triggerVisualizationProcessing("remove_subnet");
+        }
+
+        function buildFitFormHtml(suggestedPrefix) {
+            const defaultPrefix = Math.min(32, Math.max(0, suggestedPrefix + 2));
+            return `<div class="fit-subnets-form">`
+                + `<label for="fitCount">Fit</label>`
+                + `<input type="number" id="fitCount" min="1" value="4">`
+                + `<label for="fitPrefix">subnets of /</label>`
+                + `<input type="number" id="fitPrefix" min="0" max="32" value="${defaultPrefix}">`
+                + `<button class="subnet-action-btn fit-apply-btn">Fit</button>`
+                + `</div>`
+                + `<div class="fit-subnets-status"></div>`;
+        }
+
+        function attachFitFormHandlers() {
+            const countInput = infoArea.querySelector('#fitCount');
+            const prefixInput = infoArea.querySelector('#fitPrefix');
+            const applyBtn = infoArea.querySelector('.fit-apply-btn');
+            const statusEl = infoArea.querySelector('.fit-subnets-status');
+            if (!countInput || !prefixInput || !applyBtn || !statusEl) return;
+
+            const update = () => {
+                if (!lastClickedGap) {
+                    statusEl.textContent = '';
+                    applyBtn.disabled = true;
+                    return;
+                }
+                const count = parseInt(countInput.value, 10);
+                const prefix = parseInt(prefixInput.value, 10);
+                if (!Number.isInteger(count) || count < 1 || !Number.isInteger(prefix) || prefix < 0 || prefix > 32) {
+                    statusEl.textContent = 'Enter a positive count and a prefix between 0 and 32.';
+                    statusEl.classList.add('error');
+                    applyBtn.disabled = true;
+                    return;
+                }
+                const cidrs = fitSubnetsInGap(lastClickedGap.start, lastClickedGap.end, count, prefix);
+                if (!cidrs) {
+                    statusEl.textContent = `Won't fit ${count} × /${prefix} in this gap.`;
+                    statusEl.classList.add('error');
+                    applyBtn.disabled = true;
+                    return;
+                }
+                statusEl.classList.remove('error');
+                statusEl.textContent = `Fits: first ${cidrs[0]}, last ${cidrs[cidrs.length - 1]}.`;
+                applyBtn.disabled = false;
+            };
+
+            countInput.addEventListener('input', update);
+            prefixInput.addEventListener('input', update);
+            applyBtn.addEventListener('click', () => {
+                const count = parseInt(countInput.value, 10);
+                const prefix = parseInt(prefixInput.value, 10);
+                handleFitSubnets(count, prefix);
+            });
+            update();
+        }
+
+        function handleFitSubnets(count, prefix) {
+            if (!lastClickedGap) return;
+            const cidrs = fitSubnetsInGap(lastClickedGap.start, lastClickedGap.end, count, prefix);
+            if (!cidrs) return;
+            const currentSubnetsText = subnetCidrsInput.value.replace(/\n+$/, '');
+            const newText = currentSubnetsText
+                ? currentSubnetsText + '\n' + cidrs.join('\n')
+                : cidrs.join('\n');
+            subnetCidrsInput.value = newText;
+            lastClickedGap = null;
+            lastSuggestedCidr = null;
+            triggerVisualizationProcessing("fit_subnets");
         }
 
 
